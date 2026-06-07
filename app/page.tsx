@@ -1,65 +1,162 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+
+const Map = dynamic(() => import("@/components/Map"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full bg-[#0B1117] animate-pulse flex items-center justify-center text-gray-400">
+      Loading Map...
+    </div>
+  ),
+});
+
+interface Outage {
+  id: number;
+  region: string;
+  severity: "high" | "medium" | "low";
+  customers: number;
+  lat: number;
+  lng: number;
+}
 
 export default function Home() {
+  const [outages, setOutages] = useState<Outage[]>([]);
+  const [filter, setFilter] = useState<string>("all");
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/outages")
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("DATA RECEIVED:", data);
+        setOutages(data);
+      })
+      .catch((err) => console.error("FETCH ERROR:", err));
+  }, []);
+
+  const filtered = filter === "all"
+    ? outages
+    : outages.filter((o) => o.severity === filter);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="flex h-screen bg-[#030712] text-white overflow-hidden">
+
+      {/* LEFT — Map 70% */}
+      <div className="w-[70%] h-full">
+        <div className="h-full p-4">
+          <h1 className="text-xl font-black tracking-tight text-[#38BDF8] mb-2">
+            ⚡ GRID STRESS MONITOR
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-gray-400 text-sm mb-3">
+            Real-time nationwide power outage tracking
+          </p>
+          <div className="h-[calc(100%-80px)] rounded-xl overflow-hidden border border-[#1F2937]">
+            <Map outages={filtered} />
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT — Sidebar 30% */}
+      <div className="w-[30%] h-full border-l border-[#1F2937] p-5 overflow-y-auto">
+
+        {/* Why This Matters */}
+        <div className="bg-[#0B1117] border border-[#1F2937] rounded-xl p-4 mb-4">
+          <h3 className="text-[#38BDF8] font-bold mb-2 text-sm uppercase tracking-wider">
+            ⚡ Why This Matters
+          </h3>
+          <p className="text-gray-400 text-sm leading-relaxed">
+            Grid reliability is a proxy for economic trust. Outages cascade
+            into data center downtime, supply chain disruption, and climate
+            vulnerability.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Who Controls */}
+        <div className="bg-[#0B1117] border border-[#1F2937] rounded-xl p-4 mb-4">
+          <h3 className="text-[#38BDF8] font-bold mb-2 text-sm uppercase tracking-wider">
+            🏛 Who Controls the Rail
+          </h3>
+          <div className="text-sm text-gray-400 space-y-1">
+            {["FERC", "ISO / RTO", "Transmission Utility", "Distribution Utility", "End Customer"].map(
+              (level, i, arr) => (
+                <div key={level} className="flex items-center gap-2">
+                  <span className="text-[#38BDF8]">{"→".repeat(i) || "◉"}</span>
+                  <span className={i === arr.length - 1 ? "text-white" : ""}>{level}</span>
+                </div>
+              )
+            )}
+          </div>
         </div>
-      </main>
+
+        {/* Filter */}
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="w-full bg-[#0B1117] border border-[#1F2937] text-white rounded-lg p-2 mb-4 text-sm"
+        >
+          <option value="all">All Severities</option>
+          <option value="high">🔴 High</option>
+          <option value="medium">🟠 Medium</option>
+          <option value="low">🟡 Low</option>
+        </select>
+
+        {/* Active Incidents */}
+        <h3 className="text-[#38BDF8] font-bold mb-3 text-sm uppercase tracking-wider">
+          📋 Active Incidents ({filtered.length})
+        </h3>
+
+        {filtered.length === 0 ? (
+          <div className="text-gray-500 text-sm text-center py-8">
+            No incidents found...
+          </div>
+        ) : (
+          filtered.map((o) => (
+            <div
+              key={o.id}
+              className="bg-[#0B1117] border border-[#1F2937] rounded-xl p-3 mb-2 hover:border-[#38BDF8] transition-colors"
+            >
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-bold text-sm text-white">{o.region}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase ${
+                  o.severity === "high"
+                    ? "bg-red-950 text-red-400 border border-red-800"
+                    : o.severity === "medium"
+                    ? "bg-orange-950 text-orange-400 border border-orange-800"
+                    : "bg-yellow-950 text-yellow-400 border border-yellow-800"
+                }`}>
+                  {o.severity}
+                </span>
+              </div>
+              <p className="text-[#38BDF8] font-mono font-bold text-lg">
+                {o.customers.toLocaleString()}
+              </p>
+              <p className="text-gray-500 text-xs">customers affected</p>
+            </div>
+          ))
+        )}
+
+        {/* Download Button */}
+        <button
+          onClick={() => {
+            const csv = [
+              "id,region,severity,customers,lat,lng",
+              ...outages.map((o) =>
+                `${o.id},${o.region},${o.severity},${o.customers},${o.lat},${o.lng}`
+              ),
+            ].join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "outages.csv";
+            a.click();
+          }}
+          className="w-full mt-4 bg-[#38BDF8] text-[#030712] font-bold py-2 rounded-lg text-sm hover:bg-[#7DD3FC] transition-colors"
+        >
+          ⬇ Download Sample Data
+        </button>
+
+      </div>
     </div>
   );
 }
